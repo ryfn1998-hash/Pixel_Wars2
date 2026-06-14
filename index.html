@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Pixel Wars 全球官方版(備用線路)</title>
+    <title>Pixel Wars 全球官方版(第二線路)</title>
     <style>
         body {
             margin: 0;
@@ -190,7 +190,7 @@
 <body>
 
     <div id="ui-stats">
-        <div class="stat-item"><span class="dot-online"></span> 即時在線：<span id="online-count">1</span> 人</div>
+        <div class="stat-item"><span class="dot-online"></span> 即時在線：<span id="online-count">0</span> 人</div>
         <div class="stat-item"><span class="dot-views"></span> 總瀏覽量：<span id="view-count">0</span> 次</div>
     </div>
 
@@ -256,6 +256,24 @@
 
         // 玩家瀏覽自動 +1 機制 (僅限普通客戶端)
         db.ref('stats/totalViews').transaction((current) => (current || 0) + 1);
+
+        // 🚀【核心新增】真實在線人數自動計數與斷線監聽機制
+        const onlineRef = db.ref('stats/onlineUsers');
+        db.ref('.info/connected').on('value', (snapshot) => {
+            if (snapshot.val() === true) {
+                // 1. 當此視窗成功連上資料庫時，人數安全地 +1
+                onlineRef.transaction((current) => (current || 0) + 1);
+                
+                // 2. 向 Firebase 伺服器註冊斷線預告：當玩家關閉分頁、網頁重整、或斷線時，伺服器會自動扣除 1
+                onlineRef.onDisconnect().transaction((current) => {
+                    return current ? current - 1 : 0;
+                });
+
+                updateStatusText();
+            } else {
+                statusText.innerText = "斷線中，正在重新連線...";
+            }
+        });
 
         const viewport = document.getElementById('viewport');
         const wrapper = document.getElementById('canvas-wrapper');
@@ -343,14 +361,6 @@
             const cleanKey = key.replace('x', '').replace('y', '').replace('_', ',');
             localMap[cleanKey] = data.color;
             requestRender();
-        });
-
-        db.ref('.info/connected').on('value', (snapshot) => {
-            if (snapshot.val() === true) {
-                updateStatusText();
-            } else {
-                statusText.innerText = "斷線中，正在重新連線...";
-            }
         });
 
         if (localStorage.getItem('pixelCooldownEnd')) {
