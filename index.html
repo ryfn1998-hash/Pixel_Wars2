@@ -247,27 +247,32 @@
         const onlineCountEl = document.getElementById('online-count');
         const viewCountEl = document.getElementById('view-count');
 
-        db.ref('stats/onlineUsers').on('value', (snap) => {
-            if(snap.exists()) onlineCountEl.innerText = snap.val();
-        });
+        // 監聽總瀏覽量
         db.ref('stats/totalViews').on('value', (snap) => {
             if(snap.exists()) viewCountEl.innerText = snap.val();
         });
 
-        // 玩家瀏覽自動 +1 機制 (僅限普通客戶端)
+        // 玩家瀏覽自動 +1 機制
         db.ref('stats/totalViews').transaction((current) => (current || 0) + 1);
 
-        // 🚀【核心新增】真實在線人數自動計數與斷線監聽機制
-        const onlineRef = db.ref('stats/onlineUsers');
+        // 🚀【完美修復】真實在線人數監聽（改用動態子節點統計機制）
+        const connectionsRef = db.ref('stats/connections');
+        
+        // 實時統計 connections 底下有多少個子節點
+        connectionsRef.on('value', (snap) => {
+            onlineCountEl.innerText = snap.numChildren();
+        });
+
         db.ref('.info/connected').on('value', (snapshot) => {
             if (snapshot.val() === true) {
-                // 1. 當此視窗成功連上資料庫時，人數安全地 +1
-                onlineRef.transaction((current) => (current || 0) + 1);
-                
-                // 2. 向 Firebase 伺服器註冊斷線預告：當玩家關閉分頁、網頁重整、或斷線時，伺服器會自動扣除 1
-                onlineRef.onDisconnect().transaction((current) => {
-                    return current ? current - 1 : 0;
-                });
+                // 1. 每當一個視窗連進來，就在 connections 底下推入（push）一個隨機專屬臨時 ID
+                const myConnectionRef = connectionsRef.push();
+
+                // 2. 向伺服器註冊：當這個玩家斷線、重新整理、或關閉視窗時，自動「刪除（remove）」這個 ID
+                myConnectionRef.onDisconnect().remove();
+
+                // 3. 將這個臨時 ID 的值設為 true 表示此連線正在線上
+                myConnectionRef.set(true);
 
                 updateStatusText();
             } else {
