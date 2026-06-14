@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Pixel Wars 全球官方版(備用線路)</title>
+    <title>Pixel Wars 全球官方版</title>
     <style>
         body {
             margin: 0;
@@ -16,6 +16,44 @@
             height: 100%;
         }
         
+        /* 📊 左上角數據面板 */
+        #ui-stats {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            background: rgba(20, 20, 20, 0.85);
+            backdrop-filter: blur(8px);
+            padding: 10px 15px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            z-index: 20;
+            font-size: 13px;
+            line-height: 1.5;
+            border: 1px solid rgba(255,255,255,0.1);
+            pointer-events: auto;
+        }
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .dot-online {
+            width: 8px;
+            height: 8px;
+            background-color: #34c759;
+            border-radius: 50%;
+            display: inline-block;
+            box-shadow: 0 0 8px #34c759;
+        }
+        .dot-views {
+            width: 8px;
+            height: 8px;
+            background-color: #007aff;
+            border-radius: 50%;
+            display: inline-block;
+            box-shadow: 0 0 8px #007aff;
+        }
+
         #ui-top {
             position: absolute;
             top: 10px;
@@ -95,7 +133,6 @@
             transform: scale(1.1);
         }
         
-        /* 🎨 自訂顏色按鈕專用彩虹漸層與隱藏 input 樣式 */
         .color-custom-label {
             width: 32px;
             height: 32px;
@@ -118,12 +155,44 @@
             height: 0;
             pointer-events: none;
         }
+
+        /* 🔮 Discord 懸浮按鈕 */
+        #discord-btn {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: 50px;
+            height: 50px;
+            background-color: #5865F2;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 15px rgba(88, 101, 242, 0.4);
+            z-index: 20;
+            transition: transform 0.2s, background-color 0.2s;
+            text-decoration: none;
+        }
+        #discord-btn:hover {
+            transform: scale(1.1);
+            background-color: #4752C4;
+        }
+        #discord-btn svg {
+            width: 26px;
+            height: 26px;
+            fill: white;
+        }
     </style>
 
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 </head>
 <body>
+
+    <div id="ui-stats">
+        <div class="stat-item"><span class="dot-online"></span> 即時在線：<span id="online-count">1</span> 人</div>
+        <div class="stat-item"><span class="dot-views"></span> 總瀏覽量：<span id="view-count">0</span> 次</div>
+    </div>
 
     <div id="ui-top">
         <h1>Pixel Wars 像素戰爭</h1>
@@ -152,6 +221,12 @@
         </div>
     </div>
 
+    <a href="https://discord.gg/RSbvaExgfX" target="_blank" id="discord-btn" title="加入官方 Discord">
+        <svg viewBox="0 0 127.14 96.36">
+            <path d="M107.7,8.07A105.15,105.15,0,0,0,77.26,0a77.19,77.19,0,0,0-3.3,6.83A96.67,96.67,0,0,0,53.22,6.83,77.19,77.19,0,0,0,49.88,0,105.15,105.15,0,0,0,19.44,8.07C3.66,31.58-1.86,54.65,1,77.53A105.73,105.73,0,0,0,32,96.36a74.37,74.37,0,0,0,6.84-11.12,68.43,68.43,0,0,1-10.75-5.18c.91-.66,1.8-1.34,2.65-2a75.58,75.58,0,0,0,72.7,0c.85.69,1.74,1.37,2.65,2a68.43,68.43,0,0,1-10.75,5.18,74.37,74.37,0,0,0,6.84,11.12,105.73,105.73,0,0,0,31.6-18.83C129.56,49.63,123.63,26.83,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,53S36.18,40.36,42.45,40.36,53.83,46,53.83,53,48.72,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.24,60,73.24,53S78.41,40.36,84.69,40.36,96.07,46,96.07,53,91,65.69,84.69,65.69Z"/>
+        </svg>
+    </a>
+
     <script>
         const firebaseConfig = {
             apiKey: "AIzaSyCBdgYtNIFl21qObobpNCVsovzrAoPPUv8",
@@ -168,6 +243,20 @@
         const db = firebase.database();
         const pixelsRef = db.ref('pixels');
 
+        // 綁定動態數據節點
+        const onlineCountEl = document.getElementById('online-count');
+        const viewCountEl = document.getElementById('view-count');
+
+        db.ref('stats/onlineUsers').on('value', (snap) => {
+            if(snap.exists()) onlineCountEl.innerText = snap.val();
+        });
+        db.ref('stats/totalViews').on('value', (snap) => {
+            if(snap.exists()) viewCountEl.innerText = snap.val();
+        });
+
+        // 玩家瀏覽自動 +1 機制 (僅限普通客戶端)
+        db.ref('stats/totalViews').transaction((current) => (current || 0) + 1);
+
         const viewport = document.getElementById('viewport');
         const wrapper = document.getElementById('canvas-wrapper');
         const canvas = document.getElementById('pixelCanvas');
@@ -175,7 +264,6 @@
         const palette = document.getElementById('palette');
         const statusText = document.getElementById('status');
         
-        // 自訂顏色 DOM 宣告
         const customColorPicker = document.getElementById('custom-color-picker');
         const customColorLabel = document.getElementById('custom-color-label');
 
@@ -202,7 +290,6 @@
         const localMap = {}; 
         let cooldownEndTime = 0;
         
-        // 🚀 效能優化：引入防卡死渲染節流閥機制
         let renderRequested = false;
         function requestRender() {
             if (!renderRequested) {
@@ -223,13 +310,11 @@
 
         function render() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
             for (let key in localMap) {
                 const [x, y] = key.split(',').map(Number);
                 ctx.fillStyle = localMap[key];
                 ctx.fillRect(x, y, 1, 1);
             }
-
             if (scale > 0.8) {
                 wrapper.style.backgroundImage = `
                     linear-gradient(to right, rgba(0,0,0,0.15) 1px, transparent 1px),
@@ -241,7 +326,6 @@
                     linear-gradient(to bottom, rgba(0,0,0,0.03) 1px, transparent 1px)
                 `;
             }
-
             wrapper.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
         }
 
@@ -250,7 +334,7 @@
             const data = snapshot.val();
             const cleanKey = key.replace('x', '').replace('y', '').replace('_', ',');
             localMap[cleanKey] = data.color;
-            requestRender(); // 優化點：改用節流刷新，多用戶連點時不再卡頓
+            requestRender();
         });
 
         pixelsRef.on('child_changed', (snapshot) => {
@@ -258,7 +342,7 @@
             const data = snapshot.val();
             const cleanKey = key.replace('x', '').replace('y', '').replace('_', ',');
             localMap[cleanKey] = data.color;
-            requestRender(); // 優化點：改用節流刷新
+            requestRender();
         });
 
         db.ref('.info/connected').on('value', (snapshot) => {
@@ -286,7 +370,6 @@
                 const minutes = Math.floor(timeLeft / 60);
                 const seconds = timeLeft % 60;
                 statusText.innerHTML = `冷卻中！請等待 <span id="timer">${minutes}:${seconds < 10 ? '0' : ''}${seconds}</span> 後繼續`;
-                
                 setTimeout(updateStatusText, 1000);
             } else {
                 statusText.innerText = "可以點擊畫布放置像素點！";
@@ -298,10 +381,8 @@
                 alert(`冷卻中！請等待倒數結束。`);
                 return;
             }
-
             if (clickX >= 0 && clickX < MAP_SIZE && clickY >= 0 && clickY < MAP_SIZE) {
                 const dbKey = `x${clickX}_y${clickY}`;
-                
                 pixelsRef.child(dbKey).set({
                     color: selectedColor,
                     timestamp: ServerValue.TIMESTAMP
@@ -411,34 +492,26 @@
             isDragging = false;
         });
 
-        // 🎨 優化調色盤選取邏輯（包含自訂顏色切換樣式）
         palette.addEventListener('click', (e) => {
             if (e.target.classList.contains('color-btn')) {
                 const activeBtn = document.querySelector('.color-btn.active') || document.querySelector('.color-custom-label.active');
                 if (activeBtn) activeBtn.classList.remove('active');
-                
                 e.target.classList.add('active');
                 selectedColor = e.target.getAttribute('data-color');
             }
         });
 
-        // 🎨 監聽玩家調整自訂選色器事件
         customColorPicker.addEventListener('input', (e) => {
             const activeBtn = document.querySelector('.color-btn.active') || document.querySelector('.color-custom-label.active');
             if (activeBtn) activeBtn.classList.remove('active');
-            
             customColorLabel.classList.add('active');
             selectedColor = e.target.value;
-            
-            // 將彩虹外觀即時替換為玩家自訂選取的單色
             customColorLabel.style.background = selectedColor;
         });
         
-        // 點擊已經選好的自訂顏色按鈕也能直接切換過去
         customColorLabel.addEventListener('click', () => {
             const activeBtn = document.querySelector('.color-btn.active') || document.querySelector('.color-custom-label.active');
             if (activeBtn) activeBtn.classList.remove('active');
-            
             customColorLabel.classList.add('active');
             selectedColor = customColorPicker.value;
         });
@@ -446,16 +519,9 @@
         window.addEventListener('resize', () => { requestRender(); });
         centerCanvas();
 
-        document.addEventListener('contextmenu', (e) => {
-            e.preventDefault();
-        });
-
+        document.addEventListener('contextmenu', (e) => { e.preventDefault(); });
         document.addEventListener('keydown', (e) => {
-            if (
-                e.key === 'F12' || 
-                (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i' || e.key === 'J' || e.key === 'j')) || 
-                (e.ctrlKey && (e.key === 'U' || e.key === 'u'))
-            ) {
+            if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i' || e.key === 'J' || e.key === 'j')) || (e.ctrlKey && (e.key === 'U' || e.key === 'u'))) {
                 e.preventDefault();
             }
         });
